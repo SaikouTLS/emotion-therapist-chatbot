@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="welcome-container">
+        <h1>Welcome, {{ username }}!</h1>
+        <p>You have successfully logged in.</p>
+
+        <!-- Button to redirect to camera.html -->
+        <button onclick="location.href='/emotion_detection'">Go to Camera</button>
+
+        <!-- Logout button -->
+        <button onclick="location.href='/logout'">Logout</button>
+    </div>
+</body>
+</html>

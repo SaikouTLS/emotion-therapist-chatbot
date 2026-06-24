@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+        #chat-container {
+            width: 90%;
+            max-width: 600px;
+            height: 70%;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        #messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        .message {
+            margin: 10px 0;
+        }
+        .user {
+            text-align: right;
+            color: blue;
+        }
+        .bot {
+            text-align: left;
+            color: green;
+        }
+        #input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        #send-button {
+            padding: 10px 20px;
+            background: blue;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #send-button:hover {
+            background: darkblue;
+        }
+        .nav-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .nav-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .nav-button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chatbot</h1>
+    <div id="chat-container">
+        <div id="messages"></div>
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Type your message here...">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-button" onclick="goBack()">Back to Emotion Detection</button>
+        <button class="nav-button" onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        async function fetchEmotion() {
+            try {
+                const response = await fetch('/get_emotion');
+                const data = await response.json();
+                const emotion = data.emotion || "neutral";
+                addMessage(`I noticed you are feeling ${emotion}. Let's talk about it!`, 'bot');
+            } catch (error) {
+                console.error("Error fetching emotion:", error);
+                addMessage("Welcome! How can I assist you today?", 'bot');
+            }
+        }
+
+        function addMessage(content, sender) {
+            const message = document.createElement('div');
+            message.className = `message ${sender}`;
+            message.textContent = content;
+            messagesContainer.appendChild(message);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const userMessage = userInput.value.trim();
+            if (!userMessage) return;
+
+            addMessage(userMessage, 'user');
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userMessage })
+                });
+
+                const data = await response.json();
+                if (data.reply) {
+                    addMessage(data.reply, 'bot');
+                } else {
+                    addMessage("Sorry, I couldn't understand that. Please try again.", 'bot');
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                addMessage("Oops! Something went wrong. Please try again.", 'bot');
+            }
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/logout');
+                if (response.redirected) {
+                    window.location.href = response.url; // Redirect to the login page
+                }
+            } catch (error) {
+                console.error("Error logging out:", error);
+            }
+        }
+
+        function goBack() {
+            window.location.href = "/emotion_detection"; // Redirect to the Emotion Detection page
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        fetchEmotion();
+    </script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        video {
+            border: 2px solid #333;
+            border-radius: 8px;
+            width: 640px;
+            height: 480px;
+        }
+        #emotion-output {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        #next-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Emotion Detection</h1>
+    <video id="video" autoplay muted></video>
+    <div id="emotion-output">Dominant Emotion: <span id="dominant-emotion">None</span></div>
+    <button id="next-button" onclick="goToNextPage()">Next Page</button>
+
+    <script>
+        const video = document.getElementById("video");
+        const emotionOutput = document.getElementById("dominant-emotion");
+        const nextButton = document.getElementById("next-button");
+
+        let stream;
+        let stopDetection = false;
+        let mostDominantEmotion = "None"; // Variable to track the most dominant emotion
+
+        async function setupCamera() {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        }
+
+        async function captureFrame() {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL("image/jpeg");
+        }
+
+        async function analyzeEmotion() {
+            if (stopDetection) return; // Stop if detection is turned off
+
+            const frame = await captureFrame();
+            const blob = await fetch(frame).then((res) => res.blob());
+            const formData = new FormData();
+            formData.append("image", blob, "frame.jpg");
+
+            try {
+                const response = await fetch("/analyze_emotion", {
+                    method: "POST",
+                    body: formData,
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error(data.error);
+                    emotionOutput.textContent = "Error detecting emotion.";
+                } else {
+                    const { dominant_emotion } = data;
+                    emotionOutput.textContent = `Dominant Emotion: ${dominant_emotion}`;
+
+                    // Update the most dominant emotion
+                    mostDominantEmotion = dominant_emotion;
+                }
+            } catch (err) {
+                console.error("Error connecting to server:", err);
+                emotionOutput.textContent = "Error connecting to server.";
+            }
+
+            // Continue detecting emotions
+            if (!stopDetection) {
+                requestAnimationFrame(analyzeEmotion);
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach((track) => track.stop());
+            }
+        }
+
+        function goToNextPage() {
+            stopDetection = true; // Stop the detection loop
+            stopCamera(); // Stop the camera
+
+            // Send the most dominant emotion to the server
+            fetch("/set_emotion", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ emotion: mostDominantEmotion }),
+            })
+                .then(() => {
+                    window.location.href = "/chatbot"; // Redirect to the chatbot page
+                })
+                .catch((err) => console.error("Error sending emotion:", err));
+        }
+
+        async function main() {
+            await setupCamera();
+            analyzeEmotion(); // Start continuous emotion detection
+        }
+
+        main();
+    </script>
+</body>
+</html>
